@@ -1,0 +1,63 @@
+#cloud-config
+users:
+  - name: ${username}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    groups: sudo
+    shell: /bin/bash
+packages:
+  - git
+write_files:
+  - path: /usr/local/bin/mnt_script.sh
+    permissions: "0777"
+    content: |
+      #!/bin/bash
+
+      sudo apt update -y
+
+      # Check if the drive has been formatted
+      if [[ $(sudo file -s /dev/sdb) == "/dev/sdb: data" ]]; then
+        sudo mkfs -t ext4 /dev/sdb
+        sudo cp -rT /home/${username} /tmp/${username}
+        echo "Initialized filesystem on /dev/sdb"
+      fi
+
+      sudo mount /dev/sdb /home/${username}
+      echo "Mounted filesystem"
+
+      # Copy default directory, if empty
+      if [ -d "/home/${username}" ]; then
+        sudo cp -rT /tmp/${username} /home/${username}
+        echo "Home directory seeded with OS files"
+        sudo chown -R 1000:1000 /home/${username}
+      fi
+  - path: /opt/coder/init
+    permissions: "0755"
+    encoding: b64
+    content: ${init_script}
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Coder Agent
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User=${username}
+      ExecStart=/opt/coder/init
+      Environment=CODER_AGENT_TOKEN=${coder_agent_token}
+      Restart=always
+      RestartSec=10
+      TimeoutStopSec=90
+      KillMode=process
+
+      OOMScoreAdjust=-900
+      SyslogIdentifier=coder-agent
+
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - chown ${username}:${username} /home/${username}
+  - /usr/local/bin/mnt_script.sh
+  - systemctl enable coder-agent
+  - systemctl start coder-agent
