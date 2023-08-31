@@ -5,7 +5,7 @@ tags: [cloud, oci]
 ---
 
 # oci-ubuntu-ephemeral
-This template allows developers to provision ephemeral workspaces on Oracle Cloud. The user's home directory at `/home/<user>/`  persists as an [oci_core_volume](https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_volume.html) for each instance. Software can be added through a startup script the in the cloud config file. 
+This template allows developers to provision ephemeral workspaces on Oracle Cloud. The user's home directory at `/home/<user>/`  persists as an [oci_core_volume](https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_volume.html) for each instance. Software can be added through a startup script in the cloud config file. 
 
 ## Authentication
 This template uses [API Key Authentication](https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/terraformproviderconfiguration.htm#APIKeyAuth); other methods can be found in the OCI docs. Before connecting, the following Terraform variables need to be set:
