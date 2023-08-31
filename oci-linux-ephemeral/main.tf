@@ -11,7 +11,7 @@ terraform {
   }
 }
 
-# == Admin Vars ===
+# == Authentication ==
 variable "tenancy_ocid" {
   type = string
   description = "OCI Tenancy ID"
@@ -266,14 +266,28 @@ data "coder_parameter" "home_disk_size" {
   }
 }
 
-# == Coder ========
-
+# == Coder ===========
 data "coder_workspace" "me" {}
 
 resource "coder_agent" "main" {
   os   = "linux"
   arch = "amd64"
 
+  startup_script = <<EOT
+    #!bin/bash
+
+    # install and start code-server
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server --version 4.11.0
+    /tmp/code-server/bin/code-server --auth none --port 13337 >/tmp/code-server.log 2>&1 &  
+
+    # Run personalize script, if possible
+    if [ -x ~/personalize ]; then
+      ~/personalize | tee -a ~/.personalize.log
+    elif [ -f ~/personalize ]; then
+      echo "~/personalize is not executable, skipping..." | tee -a ~/.personalize.log
+    fi
+    EOT
+  
   metadata {
     key          = "cpu"
     display_name = "CPU Usage"
@@ -310,8 +324,24 @@ resource "coder_agent" "main" {
 
 }
 
+resource "coder_app" "code-server" {
+  agent_id     = coder_agent.main.id
+  slug         = "code-server"
+  display_name = "code-server"
+  url          = "http://localhost:13337/?folder=/home/${data.coder_workspace.me.owner}"
+  icon         = "/icon/code.svg"
+  subdomain    = false
+  share        = "owner"
 
-# == Oracle =======
+  healthcheck {
+    url       = "http://localhost:13337/healthz"
+    interval  = 5
+    threshold = 6
+  }
+}
+
+
+# == Oracle ==========
 
 locals {
   ubuntu_images = {
